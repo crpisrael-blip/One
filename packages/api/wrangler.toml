@@ -7,7 +7,8 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "one-db"
-database_id = "" # יוגדר לאחר יצירת ה-DB
+database_id = "4eb1821c-c616-466c-9cf5-148cca1f4506"
+migrations_dir = "../../db/migrations"
 
 # R2 Storage
 # [[r2_buckets]]
