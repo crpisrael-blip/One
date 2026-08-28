@@ -81,6 +81,14 @@ authorizationRoutes.post('/permissions', async (c) => {
   return c.json({ ok: true, data: { id } }, 201);
 });
 
+// DELETE /v1/authorization/permissions/:id
+authorizationRoutes.delete('/permissions/:id', async (c) => {
+  const tenantId = c.get('tenant_id')!;
+  const id = c.req.param('id');
+  await c.env.DB.prepare('DELETE FROM permissions WHERE id = ? AND tenant_id = ?').bind(id, tenantId).run();
+  return c.json({ ok: true, data: { id } });
+});
+
 async function evaluatePolicy(
   db: D1Database,
   tenantId: string,

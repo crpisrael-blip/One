@@ -10,6 +10,9 @@ import { tenantRoutes } from './engines/tenant/routes';
 import { authorizationRoutes } from './engines/authorization/routes';
 import { configurationRoutes } from './engines/configuration/routes';
 import { auditRoutes } from './engines/audit/routes';
+import { eventRoutes } from './engines/events/routes';
+import { notificationRoutes } from './engines/notifications/routes';
+import { workflowRoutes } from './engines/workflow/routes';
 import type { Env } from '../../shared/src/types';
 
 type Variables = {
@@ -101,6 +104,9 @@ api.route('/tenants', tenantRoutes);
 api.route('/authorization', authorizationRoutes);
 api.route('/configuration', configurationRoutes);
 api.route('/audit', auditRoutes);
+api.route('/events', eventRoutes);
+api.route('/notifications', notificationRoutes);
+api.route('/workflows', workflowRoutes);
 
 // ─── Mount versioned API ────────────────────────────────────
 app.route('/v1', api);
