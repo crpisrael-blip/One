@@ -94,11 +94,11 @@
             </div>
             <div class="stat-card">
               <div class="stat-value" id="stat-events">—</div>
-              <div class="stat-label">אירועים (24ש׳)</div>
+              <div class="stat-label">רשומות ביומן</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="stat-active">—</div>
-              <div class="stat-label">חיבורים פעילים</div>
+              <div class="stat-label">הגדרות</div>
             </div>
           </div>
         </div>
@@ -111,7 +111,7 @@
           </div>
           <table class="data-table" id="users-table">
             <thead>
-              <tr><th>שם</th><th>אימייל</th><th>תפקיד</th><th>סטטוס</th><th>פעולות</th></tr>
+              <tr><th>שם</th><th>אימייל</th><th>תפקיד</th><th>ארגון</th><th>סטטוס</th><th>פעולות</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -128,7 +128,10 @@
 
         <!-- Configuration -->
         <div id="view-configuration" class="view" hidden>
-          <h2>הגדרות</h2>
+          <div class="view-header">
+            <h2>הגדרות</h2>
+            <button class="btn btn-primary" id="add-config-btn">+ הגדרה חדשה</button>
+          </div>
           <div id="config-list" class="config-list"></div>
         </div>
 

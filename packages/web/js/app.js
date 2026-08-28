@@ -12,10 +12,20 @@ const CONFIG = {
     : 'https://one-api.menahemtzik1.workers.dev/v1',
 };
 
+const ROLE_LABELS = {
+  platform_admin: 'מנהל פלטפורמה',
+  tenant_admin: 'מנהל דייר',
+  org_admin: 'מנהל ארגון',
+  manager: 'מנהל',
+  user: 'משתמש',
+  viewer: 'צופה',
+};
+
 // ─── State ──────────────────────────────────────────────────
 let currentUser = null;
 let currentView = 'dashboard';
 let token = localStorage.getItem('one_token') || null;
+let orgsCache = [];
 
 // ─── Helpers ────────────────────────────────────────────────
 const $ = (sel, el) => (el || document).querySelector(sel);
@@ -54,6 +64,18 @@ async function api(path, opts = {}) {
   return data;
 }
 
+function confirm(msg) {
+  return window.confirm(msg);
+}
+
+function orgOptions(selectedId) {
+  let html = '<option value="">— ללא —</option>';
+  for (const o of orgsCache) {
+    html += `<option value="${esc(o.id)}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.name)}</option>`;
+  }
+  return html;
+}
+
 // ─── Modal ──────────────────────────────────────────────────
 function openModal(title, html) {
   $('#modal-title').textContent = title;
@@ -76,7 +98,15 @@ function showApp() {
   $('#login-screen').classList.remove('active');
   $('#main-layout').hidden = false;
   $('#main-layout').classList.add('active');
+  refreshOrgsCache();
   loadDashboard();
+}
+
+async function refreshOrgsCache() {
+  try {
+    const res = await api('/tenants/current/organizations');
+    orgsCache = res.data || [];
+  } catch { orgsCache = []; }
 }
 
 // ─── Navigation ─────────────────────────────────────────────
@@ -89,7 +119,6 @@ function switchView(viewName) {
 
   $$('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.view === viewName));
 
-  // Load data for view
   switch (viewName) {
     case 'dashboard': loadDashboard(); break;
     case 'users': loadUsers(); break;
@@ -102,20 +131,24 @@ function switchView(viewName) {
 // ─── Dashboard ──────────────────────────────────────────────
 async function loadDashboard() {
   try {
-    const [users, orgs] = await Promise.all([
+    const [users, orgs, audit, config] = await Promise.all([
       api('/identity/users?per_page=1'),
       api('/tenants/current/organizations'),
+      api('/audit?per_page=1'),
+      api('/configuration'),
     ]);
     $('#stat-users').textContent = users.meta?.total ?? '—';
     $('#stat-orgs').textContent = orgs.data?.length ?? '—';
-    $('#stat-events').textContent = '—';
-    $('#stat-active').textContent = '—';
+    $('#stat-events').textContent = audit.data?.length ? audit.meta?.per_page : '0';
+    $('#stat-active').textContent = config.data?.length ?? '0';
   } catch {
-    // Dashboard stats are non-critical
+    // non-critical
   }
 }
 
-// ─── Users ──────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//   USERS — Full CRUD
+// ═══════════════════════════════════════════════════════════
 async function loadUsers() {
   try {
     const res = await api('/identity/users');
@@ -126,41 +159,252 @@ async function loadUsers() {
       tr.innerHTML = `
         <td>${esc(u.name)}</td>
         <td>${esc(u.email)}</td>
-        <td><span class="badge badge-info">${esc(u.role)}</span></td>
+        <td><span class="badge badge-info">${esc(ROLE_LABELS[u.role] || u.role)}</span></td>
+        <td>${esc(u.org_name || '—')}</td>
         <td>${u.active ? '<span class="badge badge-success">פעיל</span>' : '<span class="badge badge-danger">לא פעיל</span>'}</td>
-        <td>—</td>
+        <td class="actions-cell">
+          <button class="btn-sm btn-edit" data-id="${esc(u.id)}">עריכה</button>
+          ${u.active ? `<button class="btn-sm btn-danger-sm" data-id="${esc(u.id)}">השבתה</button>` : ''}
+        </td>
       `;
       tbody.appendChild(tr);
     }
+
+    // Bind edit buttons
+    $$('.btn-edit', $('#users-table')).forEach(btn => {
+      btn.addEventListener('click', () => showEditUserModal(btn.dataset.id));
+    });
+    $$('.btn-danger-sm', $('#users-table')).forEach(btn => {
+      btn.addEventListener('click', () => deactivateUser(btn.dataset.id));
+    });
   } catch {
     toast('שגיאה בטעינת משתמשים', 'error');
   }
 }
 
-// ─── Organizations ──────────────────────────────────────────
+function showAddUserModal() {
+  openModal('משתמש חדש', `
+    <form id="user-form" class="modal-form">
+      <div class="form-group">
+        <label for="f-name">שם</label>
+        <input type="text" id="f-name" required placeholder="ישראל ישראלי">
+      </div>
+      <div class="form-group">
+        <label for="f-email">אימייל</label>
+        <input type="email" id="f-email" required placeholder="user@example.com">
+      </div>
+      <div class="form-group">
+        <label for="f-password">סיסמה</label>
+        <input type="password" id="f-password" placeholder="להשאיר ריק אם לא נדרש">
+      </div>
+      <div class="form-group">
+        <label for="f-role">תפקיד</label>
+        <select id="f-role">
+          <option value="user">משתמש</option>
+          <option value="viewer">צופה</option>
+          <option value="manager">מנהל</option>
+          <option value="org_admin">מנהל ארגון</option>
+          <option value="tenant_admin">מנהל דייר</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-org">ארגון</label>
+        <select id="f-org">${orgOptions('')}</select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      name: $('#f-name').value.trim(),
+      email: $('#f-email').value.trim(),
+      role: $('#f-role').value,
+      org_id: $('#f-org').value || undefined,
+      password: $('#f-password').value || undefined,
+    };
+    if (!body.name || !body.email) return;
+    try {
+      await api('/identity/users', { method: 'POST', body });
+      toast('המשתמש נוצר בהצלחה', 'success');
+      closeModal();
+      loadUsers();
+      loadDashboard();
+    } catch { /* toast shown */ }
+  });
+}
+
+async function showEditUserModal(userId) {
+  try {
+    const res = await api(`/identity/users/${userId}`);
+    const u = res.data;
+    openModal('עריכת משתמש', `
+      <form id="user-form" class="modal-form">
+        <div class="form-group">
+          <label for="f-name">שם</label>
+          <input type="text" id="f-name" required value="${esc(u.name)}">
+        </div>
+        <div class="form-group">
+          <label>אימייל</label>
+          <input type="email" value="${esc(u.email)}" disabled style="opacity:.6">
+        </div>
+        <div class="form-group">
+          <label for="f-password">סיסמה חדשה</label>
+          <input type="password" id="f-password" placeholder="להשאיר ריק ללא שינוי">
+        </div>
+        <div class="form-group">
+          <label for="f-role">תפקיד</label>
+          <select id="f-role">
+            <option value="user" ${u.role === 'user' ? 'selected' : ''}>משתמש</option>
+            <option value="viewer" ${u.role === 'viewer' ? 'selected' : ''}>צופה</option>
+            <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>מנהל</option>
+            <option value="org_admin" ${u.role === 'org_admin' ? 'selected' : ''}>מנהל ארגון</option>
+            <option value="tenant_admin" ${u.role === 'tenant_admin' ? 'selected' : ''}>מנהל דייר</option>
+            <option value="platform_admin" ${u.role === 'platform_admin' ? 'selected' : ''}>מנהל פלטפורמה</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-org">ארגון</label>
+          <select id="f-org">${orgOptions(u.org_id || '')}</select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+      </form>
+    `);
+    $('#user-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        name: $('#f-name').value.trim(),
+        role: $('#f-role').value,
+        org_id: $('#f-org').value || null,
+      };
+      const pw = $('#f-password').value;
+      if (pw) body.password = pw;
+      try {
+        await api(`/identity/users/${userId}`, { method: 'PUT', body });
+        toast('המשתמש עודכן בהצלחה', 'success');
+        closeModal();
+        loadUsers();
+      } catch { /* toast shown */ }
+    });
+  } catch { /* toast shown */ }
+}
+
+async function deactivateUser(userId) {
+  if (!confirm('להשבית משתמש זה?')) return;
+  try {
+    await api(`/identity/users/${userId}`, { method: 'DELETE' });
+    toast('המשתמש הושבת', 'success');
+    loadUsers();
+    loadDashboard();
+  } catch { /* toast shown */ }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   ORGANIZATIONS — Full CRUD
+// ═══════════════════════════════════════════════════════════
 async function loadOrganizations() {
   try {
     const res = await api('/tenants/current/organizations');
+    orgsCache = res.data || [];
     const container = $('#org-list');
     container.innerHTML = '';
     for (const org of res.data || []) {
       const card = document.createElement('div');
-      card.className = 'stat-card';
+      card.className = 'stat-card org-card';
       card.innerHTML = `
         <div class="stat-value" style="font-size:1.2rem">${esc(org.name)}</div>
         <div class="stat-label">${org.parent_id ? 'תת-ארגון' : 'ארגון ראשי'}</div>
+        <div class="stat-label" style="margin-top:.25rem">${org.member_count || 0} חברים</div>
+        <div class="card-actions">
+          <button class="btn-sm btn-edit" data-id="${esc(org.id)}" data-name="${esc(org.name)}">עריכה</button>
+          <button class="btn-sm btn-danger-sm" data-id="${esc(org.id)}">מחיקה</button>
+        </div>
       `;
       container.appendChild(card);
     }
     if (!res.data?.length) {
       container.innerHTML = '<p style="color:var(--text-muted)">אין ארגונים עדיין</p>';
     }
+
+    $$('.org-card .btn-edit').forEach(btn => {
+      btn.addEventListener('click', () => showEditOrgModal(btn.dataset.id, btn.dataset.name));
+    });
+    $$('.org-card .btn-danger-sm').forEach(btn => {
+      btn.addEventListener('click', () => deleteOrganization(btn.dataset.id));
+    });
   } catch {
     toast('שגיאה בטעינת ארגונים', 'error');
   }
 }
 
-// ─── Configuration ──────────────────────────────────────────
+function showAddOrgModal() {
+  openModal('ארגון חדש', `
+    <form id="org-form" class="modal-form">
+      <div class="form-group">
+        <label for="f-org-name">שם הארגון</label>
+        <input type="text" id="f-org-name" required placeholder="לדוגמה: מחלקת משאבי אנוש">
+      </div>
+      <div class="form-group">
+        <label for="f-org-parent">ארגון אב</label>
+        <select id="f-org-parent">${orgOptions('')}</select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#org-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#f-org-name').value.trim();
+    const parent_id = $('#f-org-parent').value || undefined;
+    if (!name) return;
+    try {
+      await api('/tenants/current/organizations', { method: 'POST', body: { name, parent_id } });
+      toast('הארגון נוצר בהצלחה', 'success');
+      closeModal();
+      refreshOrgsCache();
+      loadOrganizations();
+      loadDashboard();
+    } catch { /* toast shown */ }
+  });
+}
+
+function showEditOrgModal(orgId, orgName) {
+  openModal('עריכת ארגון', `
+    <form id="org-form" class="modal-form">
+      <div class="form-group">
+        <label for="f-org-name">שם הארגון</label>
+        <input type="text" id="f-org-name" required value="${esc(orgName)}">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+    </form>
+  `);
+  $('#org-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#f-org-name').value.trim();
+    if (!name) return;
+    try {
+      await api(`/tenants/current/organizations/${orgId}`, { method: 'PUT', body: { name } });
+      toast('הארגון עודכן בהצלחה', 'success');
+      closeModal();
+      refreshOrgsCache();
+      loadOrganizations();
+    } catch { /* toast shown */ }
+  });
+}
+
+async function deleteOrganization(orgId) {
+  if (!confirm('למחוק ארגון זה? משתמשים ששויכו אליו יוסרו מהארגון.')) return;
+  try {
+    await api(`/tenants/current/organizations/${orgId}`, { method: 'DELETE' });
+    toast('הארגון נמחק', 'success');
+    refreshOrgsCache();
+    loadOrganizations();
+    loadDashboard();
+  } catch { /* toast shown */ }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   CONFIGURATION — Full CRUD
+// ═══════════════════════════════════════════════════════════
 async function loadConfiguration() {
   try {
     const res = await api('/configuration');
@@ -168,21 +412,113 @@ async function loadConfiguration() {
     container.innerHTML = '';
     for (const cfg of res.data || []) {
       const div = document.createElement('div');
-      div.className = 'stat-card';
+      div.className = 'stat-card config-card';
       div.style.textAlign = 'start';
+      const displayVal = typeof cfg.value === 'string' ? cfg.value : JSON.stringify(cfg.value);
       div.innerHTML = `
         <strong>${esc(cfg.key)}</strong>
-        <div style="color:var(--text-secondary);font-size:.85rem;margin-top:.25rem">${esc(JSON.stringify(cfg.value))}</div>
+        <div style="color:var(--text-secondary);font-size:.85rem;margin-top:.25rem">${esc(displayVal)}</div>
         <div style="color:var(--text-muted);font-size:.75rem;margin-top:.25rem">scope: ${esc(cfg.scope)}</div>
+        <div class="card-actions">
+          <button class="btn-sm btn-edit" data-id="${esc(cfg.id)}" data-key="${esc(cfg.key)}" data-value="${esc(displayVal)}" data-scope="${esc(cfg.scope)}">עריכה</button>
+          <button class="btn-sm btn-danger-sm" data-id="${esc(cfg.id)}">מחיקה</button>
+        </div>
       `;
       container.appendChild(div);
     }
     if (!res.data?.length) {
       container.innerHTML = '<p style="color:var(--text-muted)">אין הגדרות עדיין</p>';
     }
+
+    $$('.config-card .btn-edit').forEach(btn => {
+      btn.addEventListener('click', () => showEditConfigModal(btn.dataset.key, btn.dataset.value, btn.dataset.scope));
+    });
+    $$('.config-card .btn-danger-sm').forEach(btn => {
+      btn.addEventListener('click', () => deleteConfig(btn.dataset.id));
+    });
   } catch {
     toast('שגיאה בטעינת הגדרות', 'error');
   }
+}
+
+function showAddConfigModal() {
+  openModal('הגדרה חדשה', `
+    <form id="config-form" class="modal-form">
+      <div class="form-group">
+        <label for="f-cfg-key">מפתח</label>
+        <input type="text" id="f-cfg-key" required placeholder="app.feature.enabled">
+      </div>
+      <div class="form-group">
+        <label for="f-cfg-value">ערך</label>
+        <input type="text" id="f-cfg-value" required placeholder="true / text / JSON">
+      </div>
+      <div class="form-group">
+        <label for="f-cfg-scope">Scope</label>
+        <select id="f-cfg-scope">
+          <option value="tenant">Tenant</option>
+          <option value="platform">Platform</option>
+          <option value="organization">Organization</option>
+          <option value="module">Module</option>
+          <option value="user">User</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#config-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const key = $('#f-cfg-key').value.trim();
+    let value = $('#f-cfg-value').value.trim();
+    const scope = $('#f-cfg-scope').value;
+    if (!key) return;
+    try { value = JSON.parse(value); } catch { /* keep as string */ }
+    try {
+      await api('/configuration', { method: 'PUT', body: { key, value, scope } });
+      toast('ההגדרה נשמרה', 'success');
+      closeModal();
+      loadConfiguration();
+    } catch { /* toast shown */ }
+  });
+}
+
+function showEditConfigModal(key, value, scope) {
+  openModal('עריכת הגדרה', `
+    <form id="config-form" class="modal-form">
+      <div class="form-group">
+        <label>מפתח</label>
+        <input type="text" value="${esc(key)}" disabled style="opacity:.6">
+      </div>
+      <div class="form-group">
+        <label for="f-cfg-value">ערך</label>
+        <input type="text" id="f-cfg-value" required value="${esc(value)}">
+      </div>
+      <div class="form-group">
+        <label>Scope</label>
+        <input type="text" value="${esc(scope)}" disabled style="opacity:.6">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+    </form>
+  `);
+  $('#config-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    let val = $('#f-cfg-value').value.trim();
+    try { val = JSON.parse(val); } catch { /* keep as string */ }
+    try {
+      await api(`/configuration/${encodeURIComponent(key)}`, { method: 'PUT', body: { value: val, scope } });
+      toast('ההגדרה עודכנה', 'success');
+      closeModal();
+      loadConfiguration();
+    } catch { /* toast shown */ }
+  });
+}
+
+async function deleteConfig(configId) {
+  if (!confirm('למחוק הגדרה זו?')) return;
+  try {
+    await api(`/configuration/${configId}`, { method: 'DELETE' });
+    toast('ההגדרה נמחקה', 'success');
+    loadConfiguration();
+  } catch { /* toast shown */ }
 }
 
 // ─── Audit ──────────────────────────────────────────────────
@@ -203,73 +539,12 @@ async function loadAudit() {
       `;
       tbody.appendChild(tr);
     }
+    if (!res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">אין רשומות ביומן</td></tr>';
+    }
   } catch {
     toast('שגיאה בטעינת יומן', 'error');
   }
-}
-
-// ─── Create Organization ────────────────────────────────────
-function showAddOrgModal() {
-  openModal('ארגון חדש', `
-    <form id="add-org-form" class="modal-form">
-      <div class="form-group">
-        <label for="org-name">שם הארגון</label>
-        <input type="text" id="org-name" required placeholder="לדוגמה: מחלקת משאבי אנוש">
-      </div>
-      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
-    </form>
-  `);
-  $('#add-org-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('#org-name').value.trim();
-    if (!name) return;
-    try {
-      await api('/tenants/current/organizations', { method: 'POST', body: { name } });
-      toast('הארגון נוצר בהצלחה', 'success');
-      closeModal();
-      loadOrganizations();
-    } catch { /* toast shown by api() */ }
-  });
-}
-
-// ─── Create User ────────────────────────────────────────────
-function showAddUserModal() {
-  openModal('משתמש חדש', `
-    <form id="add-user-form" class="modal-form">
-      <div class="form-group">
-        <label for="new-user-name">שם</label>
-        <input type="text" id="new-user-name" required placeholder="ישראל ישראלי">
-      </div>
-      <div class="form-group">
-        <label for="new-user-email">אימייל</label>
-        <input type="email" id="new-user-email" required placeholder="user@example.com">
-      </div>
-      <div class="form-group">
-        <label for="new-user-role">תפקיד</label>
-        <select id="new-user-role">
-          <option value="user">משתמש</option>
-          <option value="viewer">צופה</option>
-          <option value="manager">מנהל</option>
-          <option value="org_admin">מנהל ארגון</option>
-          <option value="tenant_admin">מנהל דייר</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
-    </form>
-  `);
-  $('#add-user-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('#new-user-name').value.trim();
-    const email = $('#new-user-email').value.trim();
-    const role = $('#new-user-role').value;
-    if (!name || !email) return;
-    try {
-      await api('/identity/users', { method: 'POST', body: { name, email, role } });
-      toast('המשתמש נוצר בהצלחה', 'success');
-      closeModal();
-      loadUsers();
-    } catch { /* toast shown by api() */ }
-  });
 }
 
 // ─── Theme ──────────────────────────────────────────────────
@@ -329,11 +604,10 @@ document.addEventListener('DOMContentLoaded', () => {
     showLogin();
   });
 
-  // Add organization
+  // Add buttons
   $('#add-org-btn').addEventListener('click', showAddOrgModal);
-
-  // Add user
   $('#add-user-btn').addEventListener('click', showAddUserModal);
+  $('#add-config-btn').addEventListener('click', showAddConfigModal);
 
   // Modal close
   $('.modal-close').addEventListener('click', closeModal);
