@@ -271,12 +271,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === $('#modal-overlay')) closeModal();
   });
 
-  // Auto-login if token exists
-  if (token) {
-    currentUser = { name: 'מנהל', email: '' };
-    $('#user-name').textContent = currentUser.name;
-    showApp();
+  // Auto-login if token exists and is valid JWT
+  if (token && token.split('.').length === 3) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      currentUser = { name: payload.email || 'מנהל', email: payload.email || '' };
+      $('#user-name').textContent = currentUser.name;
+      showApp();
+    } catch {
+      token = null;
+      localStorage.removeItem('one_token');
+      showLogin();
+    }
   } else {
+    token = null;
+    localStorage.removeItem('one_token');
     showLogin();
   }
 });
