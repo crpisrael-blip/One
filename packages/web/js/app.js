@@ -528,11 +528,16 @@ async function deleteConfig(configId) {
 // ═══════════════════════════════════════════════════════════
 //   PERMISSIONS — CRUD
 // ═══════════════════════════════════════════════════════════
-async function loadPermissions() {
+async function loadPermissions(subjectId) {
   try {
-    const userId = currentUser?.id;
-    if (!userId) { toast('לא ניתן לזהות משתמש', 'error'); return; }
-    const res = await api(`/authorization/permissions?subject_id=${userId}`);
+    const sid = subjectId || currentUser?.id;
+    if (!sid) {
+      const me = await api('/identity/me');
+      currentUser = { ...currentUser, id: me.data?.id };
+      if (!me.data?.id) { toast('לא ניתן לזהות משתמש', 'error'); return; }
+    }
+    const searchId = subjectId || currentUser.id;
+    const res = await api(`/authorization/permissions?subject_id=${encodeURIComponent(searchId)}`);
     const tbody = $('#permissions-table tbody');
     tbody.innerHTML = '';
     for (const p of res.data || []) {
@@ -1120,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const raw = atob(token.split('.')[1]);
       const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
-      currentUser = { name: payload.name || payload.email || 'מנהל', email: payload.email || '' };
+      currentUser = { id: payload.sub, name: payload.name || payload.email || 'מנהל', email: payload.email || '', role: payload.role };
       $('#user-name').textContent = currentUser.name;
       showApp();
     } catch {

@@ -79,6 +79,7 @@ workflowRoutes.put('/definitions/:id', async (c) => {
 workflowRoutes.delete('/definitions/:id', async (c) => {
   const tenantId = c.get('tenant_id')!;
   const id = c.req.param('id');
+  await c.env.DB.prepare('DELETE FROM workflow_instances WHERE definition_id = ? AND tenant_id = ?').bind(id, tenantId).run();
   await c.env.DB.prepare('DELETE FROM workflow_definitions WHERE id = ? AND tenant_id = ?').bind(id, tenantId).run();
   return c.json({ ok: true, data: { id } });
 });
