@@ -56,16 +56,26 @@ app.get('/', (c) =>
 app.post('/v1/auth/login', async (c) => {
   const body = await c.req.json<{ email: string; password: string }>();
   const user = await c.env.DB.prepare(
-    'SELECT u.id, u.email, u.name, u.role, u.tenant_id, u.active FROM users u WHERE u.email = ?'
-  ).bind(body.email).first<{ id: string; email: string; name: string; role: string; tenant_id: string; active: number }>();
+    'SELECT u.id, u.email, u.name, u.role, u.tenant_id, u.active, u.password_hash FROM users u WHERE u.email = ?'
+  ).bind(body.email).first<{ id: string; email: string; name: string; role: string; tenant_id: string; active: number; password_hash: string | null }>();
 
   if (!user || !user.active) {
     return c.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'אימייל או סיסמה שגויים' } }, 401);
   }
 
-  const payload = { sub: user.id, email: user.email, tenant_id: user.tenant_id, role: user.role };
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body64 = btoa(JSON.stringify(payload));
+  if (user.password_hash) {
+    const enc = new TextEncoder();
+    const hashBuf = await crypto.subtle.digest('SHA-256', enc.encode(body.password));
+    const hashHex = [...new Uint8Array(hashBuf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hashHex !== user.password_hash) {
+      return c.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'אימייל או סיסמה שגויים' } }, 401);
+    }
+  }
+
+  const payload = { sub: user.id, email: user.email, name: user.name, tenant_id: user.tenant_id, role: user.role };
+  const toBase64 = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+  const header = toBase64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body64 = toBase64(JSON.stringify(payload));
   const token = `${header}.${body64}.dev-signature`;
 
   return c.json({

@@ -274,8 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-login if token exists and is valid JWT
   if (token && token.split('.').length === 3) {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      currentUser = { name: payload.email || 'מנהל', email: payload.email || '' };
+      const raw = atob(token.split('.')[1]);
+      const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      currentUser = { name: payload.name || payload.email || 'מנהל', email: payload.email || '' };
       $('#user-name').textContent = currentUser.name;
       showApp();
     } catch {
