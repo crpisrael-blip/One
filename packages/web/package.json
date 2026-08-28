@@ -1,0 +1,9 @@
+{
+  "name": "@one/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler pages dev . --port 3000",
+    "deploy": "npx wrangler pages deploy . --project-name one-web"
+  }
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONE — פלטפורמת ניהול חכמה</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- ─── App Shell ────────────────────────────────────────── -->
+  <div id="app" class="app">
+
+    <!-- ─── Login Screen ───────────────────────────────────── -->
+    <section id="login-screen" class="screen login-screen active">
+      <div class="login-card">
+        <img src="/assets/logo.png" alt="ONE Platform" class="login-logo">
+        <h1>ONE Platform</h1>
+        <p class="login-subtitle">One Platform for Smarter Operations</p>
+        <form id="login-form" class="login-form">
+          <div class="form-group">
+            <label for="login-email">אימייל</label>
+            <input type="email" id="login-email" required placeholder="your@email.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="login-password">סיסמה</label>
+            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">כניסה</button>
+        </form>
+        <p class="login-footer">by <strong>Ort-Tech</strong></p>
+      </div>
+    </section>
+
+    <!-- ─── Main Layout ────────────────────────────────────── -->
+    <section id="main-layout" class="screen main-layout" hidden>
+      <!-- Header -->
+      <header class="topbar">
+        <div class="topbar-start">
+          <button id="menu-toggle" class="btn-icon" aria-label="תפריט">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <img src="/assets/logo.png" alt="ONE" class="topbar-logo">
+          <span class="topbar-title">ONE Platform</span>
+        </div>
+        <div class="topbar-end">
+          <span id="user-name" class="user-name"></span>
+          <button id="theme-toggle" class="btn-icon" aria-label="ערכת נושא">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </button>
+          <button id="logout-btn" class="btn btn-ghost">יציאה</button>
+        </div>
+      </header>
+
+      <!-- Sidebar -->
+      <nav id="sidebar" class="sidebar">
+        <ul class="nav-list">
+          <li><a href="#" data-view="dashboard" class="nav-link active">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>לוח בקרה</span>
+          </a></li>
+          <li><a href="#" data-view="users" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>משתמשים</span>
+          </a></li>
+          <li><a href="#" data-view="organizations" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>ארגונים</span>
+          </a></li>
+          <li><a href="#" data-view="configuration" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>הגדרות</span>
+          </a></li>
+          <li><a href="#" data-view="audit" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>יומן פעולות</span>
+          </a></li>
+        </ul>
+      </nav>
+
+      <!-- Main content area -->
+      <main id="content" class="content">
+        <!-- Dashboard -->
+        <div id="view-dashboard" class="view active">
+          <h2>לוח בקרה</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-users">—</div>
+              <div class="stat-label">משתמשים</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-orgs">—</div>
+              <div class="stat-label">ארגונים</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-events">—</div>
+              <div class="stat-label">אירועים (24ש׳)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-active">—</div>
+              <div class="stat-label">חיבורים פעילים</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users -->
+        <div id="view-users" class="view" hidden>
+          <div class="view-header">
+            <h2>משתמשים</h2>
+            <button class="btn btn-primary" id="add-user-btn">+ משתמש חדש</button>
+          </div>
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr><th>שם</th><th>אימייל</th><th>תפקיד</th><th>סטטוס</th><th>פעולות</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- Organizations -->
+        <div id="view-organizations" class="view" hidden>
+          <div class="view-header">
+            <h2>ארגונים</h2>
+            <button class="btn btn-primary" id="add-org-btn">+ ארגון חדש</button>
+          </div>
+          <div id="org-list" class="card-grid"></div>
+        </div>
+
+        <!-- Configuration -->
+        <div id="view-configuration" class="view" hidden>
+          <h2>הגדרות</h2>
+          <div id="config-list" class="config-list"></div>
+        </div>
+
+        <!-- Audit -->
+        <div id="view-audit" class="view" hidden>
+          <h2>יומן פעולות</h2>
+          <table class="data-table" id="audit-table">
+            <thead>
+              <tr><th>זמן</th><th>משתמש</th><th>פעולה</th><th>משאב</th><th>תוצאה</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </main>
+    </section>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal -->
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modal-title"></h3>
+          <button class="btn-icon modal-close" aria-label="סגור">&times;</button>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

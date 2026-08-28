@@ -1,0 +1,23 @@
+{
+  "name": "one-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ONE — One Platform for Smarter Operations, by Ort-Tech",
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/api",
+    "dev:web": "npm run dev --workspace=packages/web",
+    "build": "npm run build --workspace=packages/api",
+    "deploy": "npm run deploy --workspace=packages/api",
+    "deploy:web": "npm run deploy --workspace=packages/web",
+    "db:migrate": "wrangler d1 migrations apply one-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply one-db --remote",
+    "test": "npm run test --workspace=packages/api",
+    "typecheck": "tsc --noEmit -p packages/api/tsconfig.json"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
