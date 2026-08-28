@@ -7,7 +7,9 @@
 
 // ─── Configuration ──────────────────────────────────────────
 const CONFIG = {
-  API_BASE: '/api/v1',  // proxied to Cloudflare Worker
+  API_BASE: location.hostname === 'localhost'
+    ? '/api/v1'
+    : 'https://one-api.menahemtzik1.workers.dev/v1',
 };
 
 // ─── State ──────────────────────────────────────────────────

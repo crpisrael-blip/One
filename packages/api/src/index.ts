@@ -21,7 +21,13 @@ type Variables = {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // ─── Global middleware ──────────────────────────────────────
-app.use('*', cors());
+app.use('*', cors({
+  origin: [
+    'https://one.ort-tech.co.il',
+    'https://one-web-3w3.pages.dev',
+    'http://localhost:3000',
+  ],
+}));
 app.use('*', logger());
 app.use('*', secureHeaders());
 
