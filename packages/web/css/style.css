@@ -325,6 +325,24 @@ input, button, select, textarea { font: inherit; }
 .modal-header h3 { font-size: 1.1rem; }
 .modal-close { font-size: 1.5rem; line-height: 1; }
 .modal-body { padding: 1.25rem; }
+.modal-form .form-group { margin-bottom: 1rem; }
+.modal-form label { display: block; margin-bottom: .35rem; font-weight: 500; font-size: .9rem; }
+.modal-form input,
+.modal-form select {
+  width: 100%;
+  padding: .6rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: .95rem;
+}
+.modal-form input:focus,
+.modal-form select:focus {
+  outline: none;
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(26,115,167,.15);
+}
 
 /* ─── Toast ──────────────────────────────────────────────── */
 .toast-container {

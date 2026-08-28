@@ -208,6 +208,70 @@ async function loadAudit() {
   }
 }
 
+// ─── Create Organization ────────────────────────────────────
+function showAddOrgModal() {
+  openModal('ארגון חדש', `
+    <form id="add-org-form" class="modal-form">
+      <div class="form-group">
+        <label for="org-name">שם הארגון</label>
+        <input type="text" id="org-name" required placeholder="לדוגמה: מחלקת משאבי אנוש">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#add-org-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#org-name').value.trim();
+    if (!name) return;
+    try {
+      await api('/tenants/current/organizations', { method: 'POST', body: { name } });
+      toast('הארגון נוצר בהצלחה', 'success');
+      closeModal();
+      loadOrganizations();
+    } catch { /* toast shown by api() */ }
+  });
+}
+
+// ─── Create User ────────────────────────────────────────────
+function showAddUserModal() {
+  openModal('משתמש חדש', `
+    <form id="add-user-form" class="modal-form">
+      <div class="form-group">
+        <label for="new-user-name">שם</label>
+        <input type="text" id="new-user-name" required placeholder="ישראל ישראלי">
+      </div>
+      <div class="form-group">
+        <label for="new-user-email">אימייל</label>
+        <input type="email" id="new-user-email" required placeholder="user@example.com">
+      </div>
+      <div class="form-group">
+        <label for="new-user-role">תפקיד</label>
+        <select id="new-user-role">
+          <option value="user">משתמש</option>
+          <option value="viewer">צופה</option>
+          <option value="manager">מנהל</option>
+          <option value="org_admin">מנהל ארגון</option>
+          <option value="tenant_admin">מנהל דייר</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#add-user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#new-user-name').value.trim();
+    const email = $('#new-user-email').value.trim();
+    const role = $('#new-user-role').value;
+    if (!name || !email) return;
+    try {
+      await api('/identity/users', { method: 'POST', body: { name, email, role } });
+      toast('המשתמש נוצר בהצלחה', 'success');
+      closeModal();
+      loadUsers();
+    } catch { /* toast shown by api() */ }
+  });
+}
+
 // ─── Theme ──────────────────────────────────────────────────
 function toggleTheme() {
   const root = document.documentElement;
@@ -264,6 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('one_token');
     showLogin();
   });
+
+  // Add organization
+  $('#add-org-btn').addEventListener('click', showAddOrgModal);
+
+  // Add user
+  $('#add-user-btn').addEventListener('click', showAddUserModal);
 
   // Modal close
   $('.modal-close').addEventListener('click', closeModal);
