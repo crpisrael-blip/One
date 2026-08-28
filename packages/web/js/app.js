@@ -226,13 +226,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Login form
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // TODO: real auth — for now, demo mode
-    toast('מצב הדגמה — כניסה ישירה', 'warning');
-    token = 'demo';
-    localStorage.setItem('one_token', token);
-    currentUser = { name: 'מנהל הדגמה', email: 'demo@one-platform.com' };
-    $('#user-name').textContent = currentUser.name;
-    showApp();
+    const email = $('#login-email').value;
+    const password = $('#login-password').value;
+    try {
+      const res = await api('/auth/login', { method: 'POST', body: { email, password } });
+      token = res.data.token;
+      localStorage.setItem('one_token', token);
+      currentUser = res.data.user;
+      $('#user-name').textContent = currentUser.name;
+      toast('התחברת בהצלחה', 'success');
+      showApp();
+    } catch {
+      // login failed — toast already shown by api()
+    }
   });
 
   // Navigation

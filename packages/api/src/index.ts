@@ -53,6 +53,27 @@ app.get('/', (c) =>
   })
 );
 
+app.post('/v1/auth/login', async (c) => {
+  const body = await c.req.json<{ email: string; password: string }>();
+  const user = await c.env.DB.prepare(
+    'SELECT u.id, u.email, u.name, u.role, u.tenant_id, u.active FROM users u WHERE u.email = ?'
+  ).bind(body.email).first<{ id: string; email: string; name: string; role: string; tenant_id: string; active: number }>();
+
+  if (!user || !user.active) {
+    return c.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'אימייל או סיסמה שגויים' } }, 401);
+  }
+
+  const payload = { sub: user.id, email: user.email, tenant_id: user.tenant_id, role: user.role };
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body64 = btoa(JSON.stringify(payload));
+  const token = `${header}.${body64}.dev-signature`;
+
+  return c.json({
+    ok: true,
+    data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } },
+  });
+});
+
 // ─── Request Lifecycle Pipeline ─────────────────────────────
 // 1. Authentication
 const api = new Hono<{ Bindings: Env; Variables: Variables }>();
