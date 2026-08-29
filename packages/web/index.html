@@ -83,6 +83,18 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span>התראות</span>
           </a></li>
+          <li><a href="#" data-view="documents" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span>מסמכים</span>
+          </a></li>
+          <li><a href="#" data-view="commercial" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span>מסחרי</span>
+          </a></li>
+          <li><a href="#" data-view="rules" class="nav-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+            <span>כללים</span>
+          </a></li>
           <li><a href="#" data-view="events" class="nav-link">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span>אירועים</span>
@@ -205,6 +217,64 @@
               <tbody></tbody>
             </table>
           </div>
+        </div>
+
+        <!-- Documents -->
+        <div id="view-documents" class="view" hidden>
+          <div class="view-header">
+            <h2>מסמכים</h2>
+            <button class="btn btn-primary" id="add-document-btn">+ מסמך חדש</button>
+          </div>
+          <table class="data-table" id="documents-table">
+            <thead>
+              <tr><th>שם</th><th>סוג</th><th>ישות</th><th>קבצים</th><th>עודכן</th><th>פעולות</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- Commercial -->
+        <div id="view-commercial" class="view" hidden>
+          <div class="view-header">
+            <h2>מסחרי</h2>
+            <button class="btn btn-primary" id="add-package-btn">+ חבילה חדשה</button>
+          </div>
+          <div id="commercial-tabs" style="display:flex;gap:.5rem;margin-bottom:1rem">
+            <button class="btn btn-primary comm-tab" data-tab="packages">חבילות</button>
+            <button class="btn btn-ghost comm-tab" data-tab="subscriptions">מנויים</button>
+            <button class="btn btn-ghost comm-tab" data-tab="entitlements">הרשאות שימוש</button>
+          </div>
+          <div id="comm-packages" class="card-grid"></div>
+          <div id="comm-subscriptions" hidden>
+            <table class="data-table" id="subscriptions-table">
+              <thead>
+                <tr><th>חבילה</th><th>סטטוס</th><th>תחילת תקופה</th><th>סוף תקופה</th><th>פעולות</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="comm-entitlements" hidden>
+            <table class="data-table" id="entitlements-table">
+              <thead>
+                <tr><th>מודול</th><th>פיצ׳ר</th><th>מגבלה</th><th>שימוש</th><th>מופעל</th><th>פעולות</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Rules -->
+        <div id="view-rules" class="view" hidden>
+          <div class="view-header">
+            <h2>כללים</h2>
+            <button class="btn btn-primary" id="add-rule-btn">+ כלל חדש</button>
+          </div>
+          <table class="data-table" id="rules-table">
+            <thead>
+              <tr><th>שם</th><th>טריגר</th><th>עדיפות</th><th>פעיל</th><th>פעולות</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
 
         <!-- Events -->

@@ -127,6 +127,9 @@ function switchView(viewName) {
     case 'permissions': loadPermissions(); break;
     case 'workflows': loadWorkflowDefinitions(); break;
     case 'notifications': loadNotifTemplates(); break;
+    case 'documents': loadDocuments(); break;
+    case 'commercial': loadPackages(); break;
+    case 'rules': loadRules(); break;
     case 'events': loadEvents(); break;
     case 'audit': loadAudit(); break;
   }
@@ -1039,6 +1042,327 @@ async function loadAudit() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//   DOCUMENTS
+// ═══════════════════════════════════════════════════════════
+async function loadDocuments() {
+  try {
+    const res = await api('/documents');
+    const tbody = $('#documents-table tbody');
+    tbody.innerHTML = '';
+    for (const doc of res.data || []) {
+      const tr = document.createElement('tr');
+      const updated = doc.updated_at ? new Date(doc.updated_at).toLocaleString('he-IL') : '—';
+      tr.innerHTML = `
+        <td>${esc(doc.name)}</td>
+        <td><span class="badge">${esc(doc.type)}</span></td>
+        <td>${doc.entity_type ? esc(doc.entity_type) + (doc.entity_id ? '/' + esc(doc.entity_id.slice(0,8)) : '') : '—'}</td>
+        <td>${doc.file_count ?? 0}</td>
+        <td style="font-size:.8rem">${esc(updated)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="showEditDocumentModal('${esc(doc.id)}')">עריכה</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteDocument('${esc(doc.id)}')">מחיקה</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    if (!res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">אין מסמכים</td></tr>';
+    }
+  } catch { toast('שגיאה בטעינת מסמכים', 'error'); }
+}
+
+function showAddDocumentModal() {
+  openModal('מסמך חדש', `
+    <form id="doc-form">
+      <div class="form-group"><label>שם</label><input name="name" required></div>
+      <div class="form-group"><label>סוג</label><input name="type" required placeholder="חוזה / דוח / מכתב"></div>
+      <div class="form-group"><label>סוג ישות (אופציונלי)</label><input name="entity_type" placeholder="user / org"></div>
+      <div class="form-group"><label>מזהה ישות (אופציונלי)</label><input name="entity_id"></div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#doc-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await api('/documents', { method: 'POST', body: {
+      name: fd.get('name'), type: fd.get('type'),
+      entity_type: fd.get('entity_type') || undefined, entity_id: fd.get('entity_id') || undefined,
+    }});
+    closeModal(); toast('מסמך נוצר', 'success'); loadDocuments();
+  });
+}
+
+async function showEditDocumentModal(id) {
+  const res = await api(`/documents/${id}`);
+  const doc = res.data;
+  openModal('עריכת מסמך', `
+    <form id="edit-doc-form">
+      <div class="form-group"><label>שם</label><input name="name" value="${esc(doc.name)}"></div>
+      <div class="form-group"><label>סוג</label><input name="type" value="${esc(doc.type)}"></div>
+      <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+    </form>
+  `);
+  $('#edit-doc-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await api(`/documents/${id}`, { method: 'PUT', body: { name: fd.get('name'), type: fd.get('type') } });
+    closeModal(); toast('מסמך עודכן', 'success'); loadDocuments();
+  });
+}
+
+async function deleteDocument(id) {
+  if (!confirm('למחוק את המסמך?')) return;
+  await api(`/documents/${id}`, { method: 'DELETE' });
+  toast('מסמך נמחק', 'success'); loadDocuments();
+}
+
+// ═══════════════════════════════════════════════════════════
+//   COMMERCIAL — Packages / Subscriptions / Entitlements
+// ═══════════════════════════════════════════════════════════
+function switchCommTab(tab) {
+  $$('.comm-tab').forEach(b => b.className = `btn ${b.dataset.tab === tab ? 'btn-primary' : 'btn-ghost'} comm-tab`);
+  $('#comm-packages').hidden = tab !== 'packages';
+  $('#comm-subscriptions').hidden = tab !== 'subscriptions';
+  $('#comm-entitlements').hidden = tab !== 'entitlements';
+  if (tab === 'packages') loadPackages();
+  else if (tab === 'subscriptions') loadSubscriptions();
+  else loadEntitlements();
+}
+
+async function loadPackages() {
+  try {
+    const res = await api('/commercial/packages');
+    const grid = $('#comm-packages');
+    grid.innerHTML = '';
+    for (const pkg of res.data || []) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const modules = Array.isArray(pkg.modules) ? pkg.modules.join(', ') : '—';
+      card.innerHTML = `
+        <h3>${esc(pkg.name)} ${pkg.active ? '' : '<span class="badge badge-danger">לא פעיל</span>'}</h3>
+        <p>${esc(pkg.description || '')}</p>
+        <p>מודולים: ${esc(modules)}</p>
+        <p>מחיר חודשי: ₪${pkg.price_monthly ?? 0} | שנתי: ₪${pkg.price_yearly ?? 0}</p>
+        <div style="display:flex;gap:.5rem;margin-top:.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="showEditPackageModal('${esc(pkg.id)}')">עריכה</button>
+          <button class="btn btn-ghost btn-sm" onclick="deletePackage('${esc(pkg.id)}')">מחיקה</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    }
+    if (!res.data?.length) grid.innerHTML = '<p style="text-align:center;color:var(--text-muted)">אין חבילות</p>';
+  } catch { toast('שגיאה בטעינת חבילות', 'error'); }
+}
+
+function showAddPackageModal() {
+  openModal('חבילה חדשה', `
+    <form id="pkg-form">
+      <div class="form-group"><label>שם</label><input name="name" required></div>
+      <div class="form-group"><label>תיאור</label><input name="description"></div>
+      <div class="form-group"><label>מודולים (מופרדים בפסיק)</label><input name="modules" placeholder="identity, workflow, documents"></div>
+      <div class="form-group"><label>מחיר חודשי</label><input name="price_monthly" type="number" value="0"></div>
+      <div class="form-group"><label>מחיר שנתי</label><input name="price_yearly" type="number" value="0"></div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#pkg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const modules = fd.get('modules') ? fd.get('modules').split(',').map(s => s.trim()).filter(Boolean) : [];
+    await api('/commercial/packages', { method: 'POST', body: {
+      name: fd.get('name'), description: fd.get('description') || undefined,
+      modules, price_monthly: Number(fd.get('price_monthly')), price_yearly: Number(fd.get('price_yearly')),
+    }});
+    closeModal(); toast('חבילה נוצרה', 'success'); loadPackages();
+  });
+}
+
+async function showEditPackageModal(id) {
+  const res = await api('/commercial/packages');
+  const pkg = (res.data || []).find(p => p.id === id);
+  if (!pkg) return toast('חבילה לא נמצאה', 'error');
+  const modules = Array.isArray(pkg.modules) ? pkg.modules.join(', ') : '';
+  openModal('עריכת חבילה', `
+    <form id="edit-pkg-form">
+      <div class="form-group"><label>שם</label><input name="name" value="${esc(pkg.name)}"></div>
+      <div class="form-group"><label>תיאור</label><input name="description" value="${esc(pkg.description || '')}"></div>
+      <div class="form-group"><label>מודולים</label><input name="modules" value="${esc(modules)}"></div>
+      <div class="form-group"><label>מחיר חודשי</label><input name="price_monthly" type="number" value="${pkg.price_monthly ?? 0}"></div>
+      <div class="form-group"><label>מחיר שנתי</label><input name="price_yearly" type="number" value="${pkg.price_yearly ?? 0}"></div>
+      <div class="form-group"><label><input type="checkbox" name="active" ${pkg.active ? 'checked' : ''}> פעיל</label></div>
+      <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+    </form>
+  `);
+  $('#edit-pkg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const mods = fd.get('modules') ? fd.get('modules').split(',').map(s => s.trim()).filter(Boolean) : [];
+    await api(`/commercial/packages/${id}`, { method: 'PUT', body: {
+      name: fd.get('name'), description: fd.get('description'),
+      modules: mods, price_monthly: Number(fd.get('price_monthly')), price_yearly: Number(fd.get('price_yearly')),
+      active: !!fd.get('active'),
+    }});
+    closeModal(); toast('חבילה עודכנה', 'success'); loadPackages();
+  });
+}
+
+async function deletePackage(id) {
+  if (!confirm('למחוק את החבילה? כל המנויים שלה יימחקו.')) return;
+  await api(`/commercial/packages/${id}`, { method: 'DELETE' });
+  toast('חבילה נמחקה', 'success'); loadPackages();
+}
+
+async function loadSubscriptions() {
+  try {
+    const res = await api('/commercial/subscriptions');
+    const tbody = $('#subscriptions-table tbody');
+    tbody.innerHTML = '';
+    const statusLabels = { active: 'פעיל', trial: 'ניסיון', past_due: 'באיחור', cancelled: 'בוטל' };
+    for (const sub of res.data || []) {
+      const tr = document.createElement('tr');
+      const badgeClass = sub.status === 'active' ? 'success' : sub.status === 'cancelled' ? 'danger' : 'warning';
+      tr.innerHTML = `
+        <td>${esc(sub.package_name || sub.package_id?.slice(0,8) || '—')}</td>
+        <td><span class="badge badge-${badgeClass}">${esc(statusLabels[sub.status] || sub.status)}</span></td>
+        <td style="font-size:.8rem">${sub.current_period_start ? esc(new Date(sub.current_period_start).toLocaleDateString('he-IL')) : '—'}</td>
+        <td style="font-size:.8rem">${sub.current_period_end ? esc(new Date(sub.current_period_end).toLocaleDateString('he-IL')) : '—'}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="deleteSubscription('${esc(sub.id)}')">מחיקה</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+    if (!res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">אין מנויים</td></tr>';
+    }
+  } catch { toast('שגיאה בטעינת מנויים', 'error'); }
+}
+
+async function deleteSubscription(id) {
+  if (!confirm('למחוק את המנוי?')) return;
+  await api(`/commercial/subscriptions/${id}`, { method: 'DELETE' });
+  toast('מנוי נמחק', 'success'); loadSubscriptions();
+}
+
+async function loadEntitlements() {
+  try {
+    const res = await api('/commercial/entitlements');
+    const tbody = $('#entitlements-table tbody');
+    tbody.innerHTML = '';
+    for (const ent of res.data || []) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(ent.module)}</td>
+        <td>${esc(ent.feature)}</td>
+        <td>${ent.lmt === -1 ? 'ללא הגבלה' : ent.lmt}</td>
+        <td>${ent.usage ?? 0}</td>
+        <td>${ent.enabled ? '<span class="badge badge-success">כן</span>' : '<span class="badge badge-danger">לא</span>'}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="deleteEntitlement('${esc(ent.id)}')">מחיקה</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+    if (!res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">אין הרשאות שימוש</td></tr>';
+    }
+  } catch { toast('שגיאה בטעינת הרשאות שימוש', 'error'); }
+}
+
+async function deleteEntitlement(id) {
+  if (!confirm('למחוק את הרשאת השימוש?')) return;
+  await api(`/commercial/entitlements/${id}`, { method: 'DELETE' });
+  toast('הרשאת שימוש נמחקה', 'success'); loadEntitlements();
+}
+
+// ═══════════════════════════════════════════════════════════
+//   RULES
+// ═══════════════════════════════════════════════════════════
+async function loadRules() {
+  try {
+    const res = await api('/rules');
+    const tbody = $('#rules-table tbody');
+    tbody.innerHTML = '';
+    for (const rule of res.data || []) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(rule.name)}</td>
+        <td><span class="badge">${esc(rule.trigger_event || '—')}</span></td>
+        <td>${rule.priority ?? 0}</td>
+        <td>${rule.active ? '<span class="badge badge-success">כן</span>' : '<span class="badge badge-danger">לא</span>'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="showEditRuleModal('${esc(rule.id)}')">עריכה</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteRule('${esc(rule.id)}')">מחיקה</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    if (!res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">אין כללים</td></tr>';
+    }
+  } catch { toast('שגיאה בטעינת כללים', 'error'); }
+}
+
+function showAddRuleModal() {
+  openModal('כלל חדש', `
+    <form id="rule-form">
+      <div class="form-group"><label>שם</label><input name="name" required></div>
+      <div class="form-group"><label>תיאור</label><input name="description"></div>
+      <div class="form-group"><label>טריגר</label><input name="trigger_event" required placeholder="user.created / order.completed"></div>
+      <div class="form-group"><label>תנאים (JSON)</label><textarea name="conditions" rows="3">[{"field":"role","op":"eq","value":"admin"}]</textarea></div>
+      <div class="form-group"><label>פעולות (JSON)</label><textarea name="actions" rows="3">[{"type":"notify","channel":"email"}]</textarea></div>
+      <div class="form-group"><label>עדיפות</label><input name="priority" type="number" value="100"></div>
+      <button type="submit" class="btn btn-primary btn-block">יצירה</button>
+    </form>
+  `);
+  $('#rule-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    let conditions, actions;
+    try { conditions = JSON.parse(fd.get('conditions')); } catch { toast('תנאים — JSON לא תקין', 'error'); return; }
+    try { actions = JSON.parse(fd.get('actions')); } catch { toast('פעולות — JSON לא תקין', 'error'); return; }
+    await api('/rules', { method: 'POST', body: {
+      name: fd.get('name'), description: fd.get('description') || undefined,
+      trigger_event: fd.get('trigger_event'), conditions, actions,
+      priority: Number(fd.get('priority')),
+    }});
+    closeModal(); toast('כלל נוצר', 'success'); loadRules();
+  });
+}
+
+async function showEditRuleModal(id) {
+  const res = await api(`/rules/${id}`);
+  const rule = res.data;
+  openModal('עריכת כלל', `
+    <form id="edit-rule-form">
+      <div class="form-group"><label>שם</label><input name="name" value="${esc(rule.name)}"></div>
+      <div class="form-group"><label>תיאור</label><input name="description" value="${esc(rule.description || '')}"></div>
+      <div class="form-group"><label>טריגר</label><input name="trigger_event" value="${esc(rule.trigger_event || '')}"></div>
+      <div class="form-group"><label>תנאים (JSON)</label><textarea name="conditions" rows="3">${esc(JSON.stringify(rule.conditions, null, 2))}</textarea></div>
+      <div class="form-group"><label>פעולות (JSON)</label><textarea name="actions" rows="3">${esc(JSON.stringify(rule.actions, null, 2))}</textarea></div>
+      <div class="form-group"><label>עדיפות</label><input name="priority" type="number" value="${rule.priority ?? 0}"></div>
+      <div class="form-group"><label><input type="checkbox" name="active" ${rule.active ? 'checked' : ''}> פעיל</label></div>
+      <button type="submit" class="btn btn-primary btn-block">שמירה</button>
+    </form>
+  `);
+  $('#edit-rule-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    let conditions, actions;
+    try { conditions = JSON.parse(fd.get('conditions')); } catch { toast('תנאים — JSON לא תקין', 'error'); return; }
+    try { actions = JSON.parse(fd.get('actions')); } catch { toast('פעולות — JSON לא תקין', 'error'); return; }
+    await api(`/rules/${id}`, { method: 'PUT', body: {
+      name: fd.get('name'), description: fd.get('description'),
+      trigger_event: fd.get('trigger_event'), conditions, actions,
+      priority: Number(fd.get('priority')), active: !!fd.get('active'),
+    }});
+    closeModal(); toast('כלל עודכן', 'success'); loadRules();
+  });
+}
+
+async function deleteRule(id) {
+  if (!confirm('למחוק את הכלל?')) return;
+  await api(`/rules/${id}`, { method: 'DELETE' });
+  toast('כלל נמחק', 'success'); loadRules();
+}
+
 // ─── Theme ──────────────────────────────────────────────────
 function toggleTheme() {
   const root = document.documentElement;
@@ -1103,6 +1427,14 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#add-permission-btn').addEventListener('click', showAddPermissionModal);
   $('#add-workflow-btn').addEventListener('click', showAddWorkflowModal);
   $('#add-notif-template-btn').addEventListener('click', showAddNotifTemplateModal);
+  $('#add-document-btn').addEventListener('click', showAddDocumentModal);
+  $('#add-package-btn').addEventListener('click', showAddPackageModal);
+  $('#add-rule-btn').addEventListener('click', showAddRuleModal);
+
+  // Commercial tabs
+  $$('.comm-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchCommTab(btn.dataset.tab));
+  });
 
   // Workflow tabs
   $$('.wf-tab').forEach(btn => {

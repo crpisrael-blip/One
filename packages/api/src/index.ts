@@ -13,6 +13,9 @@ import { auditRoutes } from './engines/audit/routes';
 import { eventRoutes } from './engines/events/routes';
 import { notificationRoutes } from './engines/notifications/routes';
 import { workflowRoutes } from './engines/workflow/routes';
+import { documentRoutes } from './engines/documents/routes';
+import { commercialRoutes } from './engines/commercial/routes';
+import { rulesRoutes } from './engines/rules/routes';
 import type { Env } from '../../shared/src/types';
 
 type Variables = {
@@ -107,6 +110,9 @@ api.route('/audit', auditRoutes);
 api.route('/events', eventRoutes);
 api.route('/notifications', notificationRoutes);
 api.route('/workflows', workflowRoutes);
+api.route('/documents', documentRoutes);
+api.route('/commercial', commercialRoutes);
+api.route('/rules', rulesRoutes);
 
 // ─── Mount versioned API ────────────────────────────────────
 app.route('/v1', api);
